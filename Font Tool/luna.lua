@@ -439,7 +439,7 @@ function onDraw()
     -- Update layout, scroll limits, and buffer
     if  display.layoutDirty  then
         display.layoutDirty = false
-        local parsed = textplus.parse(display.testString, {font=currentFont, xscale=display.scale, yscale=display.scale})
+        local parsed = textplus.parse("<wave "..waveUI.value..">"..display.testString.."</wave>", {font=currentFont, xscale=display.scale, yscale=display.scale})
         display.layout = textplus.layout(parsed)
 
         display.scrollMax = vector(
