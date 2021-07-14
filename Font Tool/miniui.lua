@@ -42,7 +42,7 @@ end
 -- =======================================
 local function tick_spinbox(ui)
   if Colliders.collide(cursor.screenpos, ui.lButtonColl) then
-    if cursor.click or (cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
+    if cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
       ui.value = math.clamp(ui.value - ui.int, ui.min, ui.max)
       if ui.func then ui.func('left') end
     end
@@ -60,7 +60,7 @@ local function tick_spinbox(ui)
   end
 
   if Colliders.collide(cursor.screenpos, ui.rButtonColl) then
-    if cursor.click or (cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
+    if cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
       ui.value = math.clamp(ui.value + ui.int, ui.min, ui.max)
       if ui.func then ui.func('right') end
     end
@@ -89,7 +89,7 @@ local function tick_spinbox(ui)
       ui.lineEditState = 0
       isActiveBuffer = false
       ui.value = tonumber(ui.lineEditBuffer) or ui.default
-      ui.value = math.clamp(ui.value, ui.min, ui.max)\
+      ui.value = math.clamp(ui.value, ui.min, ui.max)
       if ui.func then ui.func('line') end
     end
   end
