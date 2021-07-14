@@ -1,23 +1,29 @@
 local textplus = require("textplus")
+local miniui = require("miniui")
 local cursor = require("cursor")
 
 
 
 function wrapInt(current, minVal, maxVal)
-	local range = maxVal - minVal + 1
-	local wrapped = current
+	return ((minVal - maxVal) % (current - maxVal + minVal)) + maxVal
 
-	-- Todo: optimize this thing with the proper application of simple math
-	while  wrapped < minVal  do
-		wrapped = wrapped + range
-	end
-
-	while  wrapped > maxVal  do
-		wrapped = wrapped - range
-	end
-
-	return wrapped
+	-- local range = maxVal - minVal + 1
+	-- local wrapped = current
+	--
+	-- -- Todo: optimize this thing with the proper application of simple math
+	-- while  wrapped < minVal  do
+	-- 	wrapped = wrapped + range
+	-- end
+	--
+	-- while  wrapped > maxVal  do
+	-- 	wrapped = wrapped - range
+	-- end
+	--
+	-- return wrapped
 end
+
+local scaleUI = miniui.SpinBox{min = -10, max = 10, int = 0.5, x = 16, y = 180, name = "Scale: ", default = 1}
+local waveUI = miniui.SpinBox{min = -10, max = 10, int = 0.5, x = 16, y = 250, name = "Wave: ", default = 0}
 
 
 local fontIndex = 1
@@ -271,6 +277,7 @@ end
 
 
 function onDraw()
+	display.scale = scaleUI.value -- im not sure how to do the thing to do the thing
 
     -- exposed table integration
     if  fontviewer.text ~= nil  and  fontviewer.text ~= display.testString  then
@@ -330,7 +337,7 @@ function onDraw()
 
     for  _,k in ipairs(labelList)  do
         local v = labels[k]
-       
+
         textplus.print {
             font = uiFont,
             xscale = 2,
@@ -409,7 +416,7 @@ function onDraw()
                     buttonScroll.startTick = lunatime.tick()
                 end
                 scrollTick = lunatime.tick()-buttonScroll.startTick
-                
+
                 if  scrollTick%8 == 0  and  scrollTick > 20  and  v.onScroll  then
                     v:onScroll()
                 end
@@ -484,7 +491,7 @@ function onDraw()
 
     -- vertical
     if  display.scrollMax.y > 0  then
-        
+
         -- Bar
         Graphics.drawBox{
             x=display.bounds.right, y=display.bounds.top,
@@ -535,7 +542,7 @@ function onDraw()
 
     -- Display the preview text
     display.buffer:clear(100)
-    if  currentFont ~= nil  then      
+    if  currentFont ~= nil  then
 
         textplus.render{
             layout = display.layout,
