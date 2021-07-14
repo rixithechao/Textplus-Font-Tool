@@ -20,12 +20,12 @@ function wrapInt(current, minVal, maxVal)
 end
 
 
-
-
+local fontIndex = 1
 local fontList = {}
 local fontMap = {}
 local localCount = 1
-local defaultTestString = [[The quick brown fox<br>jumps over the lazy dog<br>ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz<br>1234567890.,!?:;'"&%()[]{}<br>*+=-_]]
+local defaultTestString = [[The quick brown fox<br>jumps over the lazy dog<br>ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz<br>1234567890.,!?:;'"&%()[]{}<br>*+=-_<br><wave 3>wavy text</wave> <glitch 1>glitched text</glitch> <color rainbow>colors</color>]]
+
 
 
 local testStringField = {
@@ -54,13 +54,22 @@ local display = {
     testString = defaultTestString,
     testStringPlaintext = "",
     testStringDirty = true,
-    buffer = CaptureBuffer(2048,1536),
+
+    buffer = CaptureBuffer(2048,2048),
+    layout = nil,
 
 
     -- methods
+    getCurrentFont = function(self)
+        local fontName = fontList[self.index]  or  ""
+        local currentFont = fontMap[fontName]
+        return currentFont, fontName
+    end,
+
     ChangeTestString = function(self, newText)
         self.testString = newText
         self.testStringDirty = true
+        self.layoutDirty = true
     end
 }
 display.bounds.w = display.bounds.right-display.bounds.left
@@ -85,12 +94,14 @@ local buttons = {
         x=32,y=56, img=buttonGfx.left,
         onPress = function(self)
             display.index = wrapInt(display.index-1, 1, #fontList)
+            display.layoutDirty = true
         end
     },
     fontRight = {
         x=64,y=56, img=buttonGfx.right,
         onPress = function(self)
             display.index = wrapInt(display.index+1, 1, #fontList)
+            display.layoutDirty = true
         end,
     },
 
@@ -101,6 +112,7 @@ local buttons = {
         onPress = function(self)
             display.scaleIndex = display.scaleIndex-1
             display.scale = scales[display.scaleIndex]
+            display.layoutDirty = true
         end
     },
     scaleRight = {
@@ -108,6 +120,7 @@ local buttons = {
         onPress = function(self)
             display.scaleIndex = display.scaleIndex+1
             display.scale = scales[display.scaleIndex]
+            display.layoutDirty = true
         end
     },
 
@@ -124,7 +137,7 @@ local buttons = {
         x=display.bounds.right-16, y=display.bounds.bottom+16,
         img = buttonGfx.right,
         onHold = function(self)
-            display.scrollPos.x = math.min(1000, display.scrollPos.x+10)
+            display.scrollPos.x = math.min(display.scrollMax.x, display.scrollPos.x+10)
         end
     },
     displayUp = {
@@ -138,7 +151,7 @@ local buttons = {
         x=display.bounds.right+16, y=display.bounds.bottom-16,
         img = buttonGfx.down,
         onHold = function(self)
-            display.scrollPos.y = math.min(1000, display.scrollPos.y+10)
+            display.scrollPos.y = math.min(display.scrollMax.y, display.scrollPos.y+10)
         end
     },
 
@@ -266,9 +279,8 @@ function onDraw()
     display.testString = fontviewer.text  or  display.testString
 
 
-    -- Assorted local vars
-    local fontName = fontList[display.index]  or  ""
-    local currentFont = fontMap[fontName]
+    -- Get the current font
+    local currentFont, fontName = display:getCurrentFont()
 
 
     -- Update the test string plaintext
@@ -281,6 +293,7 @@ function onDraw()
                 return "<gt>"
             end
         end)
+        display.layoutDirty = true
     end
 
 
@@ -331,8 +344,6 @@ function onDraw()
     end
 
     -- Text entry field rendering
-
-
     Graphics.drawBox{
         x=stringFieldPos.x-2, y=stringFieldPos.y-2,
         w=stringFieldSize.x+4, h=stringFieldSize.y+4,
@@ -414,76 +425,121 @@ function onDraw()
     end
 
 
+    -- Refresh the current font in case it changed
+    currentFont, fontName = display:getCurrentFont()
+
+
+    -- Update layout, scroll limits, and buffer
+    if  display.layoutDirty  then
+        display.layoutDirty = false
+        local parsed = textplus.parse(display.testString, {font=currentFont, xscale=display.scale, yscale=display.scale})
+        display.layout = textplus.layout(parsed)
+
+        display.scrollMax = vector(
+            math.max(0, display.layout.width+20-display.bounds.w),
+            math.max(0, display.layout.height+20-display.bounds.h)
+        )
+        display.scrollPos = vector(
+            math.min(display.scrollMax.x, display.scrollPos.x),
+            math.min(display.scrollMax.y, display.scrollPos.y)
+        )
+
+        display.buffer = CaptureBuffer(display.layout.width+20,display.layout.height+20)
+
+        buttons.displayLeft.visible = display.scrollMax.x > 0
+        buttons.displayRight.visible = display.scrollMax.x > 0
+        buttons.displayUp.visible = display.scrollMax.y > 0
+        buttons.displayDown.visible = display.scrollMax.y > 0
+    end
+
+
     -- Scrollbars
-    Graphics.drawBox{
-        x=display.bounds.right, y=display.bounds.top,
-        w=32, h=display.bounds.h,
-        color = Color.darkgray,
-        priority=-1
-    }
-    Graphics.drawBox{
-        x=display.bounds.left, y=display.bounds.bottom,
-        w=display.bounds.w, h=32,
-        color = Color.darkgray,
-        priority=-1
-    }
-    Graphics.drawBox{
-        x=display.bounds.right+2, y=display.bounds.top+2,
-        w=28, h=display.bounds.h-4,
-        color = Color.gray,
-        priority=-1
-    }
-    Graphics.drawBox{
-        x=display.bounds.left+2, y=display.bounds.bottom+2,
-        w=display.bounds.w-4, h=28,
-        color = Color.gray,
-        priority=-1
-    }
-
-
-    -- Scrollbar boxes
     local scrollPercent = vector(math.invlerp(0,display.scrollMax.x, display.scrollPos.x), math.invlerp(0,display.scrollMax.y, display.scrollPos.y))
 
     -- horizontal
-    Graphics.drawBox{
-        x=display.bounds.left+32 + math.lerp(0,display.bounds.w-92, scrollPercent.x), y=display.bounds.bottom+2,
-        w=28, h=28,
-        color = Color.lightgray,
-        priority=-1
-    }
-    -- vertical 
-    Graphics.drawBox{
-        x=display.bounds.right+2, y=display.bounds.top+32 + math.lerp(0,display.bounds.h-92, scrollPercent.y),
-        w=28, h=28,
-        color = Color.lightgray,
-        priority=-1
-    }
+    if  display.scrollMax.x > 0  then
+
+        -- Bar
+        Graphics.drawBox{
+            x=display.bounds.left, y=display.bounds.bottom,
+            w=display.bounds.w, h=32,
+            color = Color.darkgray,
+            priority=-3
+        }
+        Graphics.drawBox{
+            x=display.bounds.left+2, y=display.bounds.bottom+2,
+            w=display.bounds.w-4, h=28,
+            color = Color.gray,
+            priority=-2
+        }
+
+        -- Box
+        Graphics.drawBox{
+            x=display.bounds.left+32 + math.lerp(0,display.bounds.w-92, scrollPercent.x), y=display.bounds.bottom+2,
+            w=28, h=28,
+            color = Color.lightgray,
+            priority=-1
+        }
+    end
+
+    -- vertical
+    if  display.scrollMax.y > 0  then
+        
+        -- Bar
+        Graphics.drawBox{
+            x=display.bounds.right, y=display.bounds.top,
+            w=32, h=display.bounds.h,
+            color = Color.darkgray,
+            priority=-3
+        }
+        Graphics.drawBox{
+            x=display.bounds.right+2, y=display.bounds.top+2,
+            w=28, h=display.bounds.h-4,
+            color = Color.gray,
+            priority=-2
+        }
+
+        -- Box
+        Graphics.drawBox{
+            x=display.bounds.right+2, y=display.bounds.top+32 + math.lerp(0,display.bounds.h-92, scrollPercent.y),
+            w=28, h=28,
+            color = Color.lightgray,
+            priority=-1
+        }
+    end
+
 
     -- Scrollbar dragging
     if  cursor.left == KEYS_DOWN  then
         -- Horz drag
-        if  cursor.x > display.bounds.left+32  and  cursor.x < display.bounds.right-32  and  cursor.y > display.bounds.bottom  and  cursor.y < display.bounds.bottom+32  then
+        if   cursor.x > display.bounds.left+32
+        and  cursor.x < display.bounds.right-32
+        and  cursor.y > display.bounds.bottom
+        and  cursor.y < display.bounds.bottom+32
+        and  display.scrollMax.x > 0
+        then
             local percent = math.invlerp(display.bounds.left+48,display.bounds.right-48, cursor.x)
             display.scrollPos.x = display.scrollMax.x*math.clamp(percent,0,1)
         end
         -- Vert drag
-        if  cursor.x > display.bounds.right  and  cursor.x < display.bounds.right+32  and  cursor.y > display.bounds.top+32  and  cursor.y < display.bounds.bottom-32  then
+        if   cursor.x > display.bounds.right
+        and  cursor.x < display.bounds.right+32
+        and  cursor.y > display.bounds.top+32
+        and  cursor.y < display.bounds.bottom-32
+        and  display.scrollMax.y > 0
+        then
             local percent = math.invlerp(display.bounds.top+48,display.bounds.bottom-48, cursor.y)
             display.scrollPos.y = display.scrollMax.y*math.clamp(percent,0,1)
         end
     end
 
-    -- Display the test string
+    -- Display the preview text
     display.buffer:clear(100)
     if  currentFont ~= nil  then      
 
-        textplus.print {
-            font = currentFont,
-            xscale = display.scale,
-            yscale = display.scale,
-            x = 10,
-            y = 10,
-            text = display.testString,
+        textplus.render{
+            layout = display.layout,
+            x = 10, y=10, sceneCoords = false,
             target = display.buffer
         }
     end
