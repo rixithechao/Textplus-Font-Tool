@@ -5,7 +5,7 @@ local cursor = require("cursor")
 
 
 function wrapInt(current, minVal, maxVal)
-	return ((minVal - maxVal) % (current - maxVal + minVal)) + maxVal
+	return ((current - maxVal + minVal) % (minVal - maxVal)) + maxVal
 
 	-- local range = maxVal - minVal + 1
 	-- local wrapped = current
@@ -22,7 +22,7 @@ function wrapInt(current, minVal, maxVal)
 	-- return wrapped
 end
 
-local scaleUI = miniui.SpinBox{min = -10, max = 10, int = 0.5, x = 16, y = 180, name = "Scale: ", default = 1}
+local scaleUI = miniui.SpinBox{min = 0, max = 10, int = 0.5, x = 16, y = 180, name = "Scale: ", default = 1} -- Can we get a scaleX and scaleY option? sometimes I use tall text and it would be nice to see what it looks like
 local waveUI = miniui.SpinBox{min = -10, max = 10, int = 0.5, x = 16, y = 250, name = "Wave: ", default = 0}
 
 
