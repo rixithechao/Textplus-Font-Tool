@@ -8,6 +8,8 @@ local uiFont = textplus.loadFont("textplus/font/4.ini")
 local isActiveBuffer = false
 local activeBuffer = ""
 
+local ceil, min = math.ceil, math.min
+
 local buttonGfx = {
     left = Graphics.loadImageResolved("button_left.png"),
     right = Graphics.loadImageResolved("button_right.png"),
@@ -35,6 +37,111 @@ local function drawTextureBox(texture, coll, sx, sy, sw, sh)
   local textureCoords = {tx, ty, tx, th, tw, th, tx, ty, tw, ty, tw, th}
 
   Graphics.glDraw{texture = texture, vertexCoords = vertexCoords,textureCoords = textureCoords, priority = 0,}
+end
+
+-- Big thanks to MDA for supplying this function
+local function drawSegmentedBox(args)
+  local texture = args.texture or args.image
+  local target = args.target or nil
+
+  local priority = args.priority or 0
+  local sceneCoords = args.sceneCoords or false
+  local color = args.color or Color.white
+
+  local x = args.x
+  local y = args.y
+  local width = args.width
+  local height = args.height
+
+  local segmentWidth = texture.width / 3
+  local segmentHeight = texture.height / 3
+
+  local segmentCountX = ceil(width / segmentWidth)
+  local segmentCountY = ceil(height / segmentHeight)
+
+
+  local vertexCoords = {}
+  local textureCoords = {}
+  local vertexCount = 0
+
+  for segmentX = 1,segmentCountX do
+    for segmentY = 1,segmentCountY do
+      local thisX = x
+      local thisY = y
+      local thisWidth = min(width*0.5,segmentWidth)
+      local thisHeight = min(height*0.5,segmentHeight)
+      local thisSourceX = 0
+      local thisSourceY = 0
+
+      if segmentX == segmentCountX then
+        thisX = thisX + width - thisWidth
+        thisSourceX = texture.width - thisWidth
+      elseif segmentX > 1 then
+        thisX = thisX + thisWidth + (segmentX-2)*segmentWidth
+        thisWidth = min(width - segmentWidth - (thisX - x),segmentWidth)
+        thisSourceX = segmentWidth
+      end
+
+      if segmentY == segmentCountY then
+        thisY = thisY + height - thisHeight
+        thisSourceY = texture.height - thisHeight
+      elseif segmentY > 1 then
+        thisY = thisY + thisHeight + (segmentY-2)*segmentHeight
+        thisHeight = min(height - segmentHeight - (thisY - y),segmentHeight)
+        thisSourceY = segmentHeight
+      end
+
+
+      if thisWidth > 0 and thisHeight > 0 then
+        -- Add to vertexCoords
+        local x1 = thisX
+        local y1 = thisY
+        local x2 = thisX + thisWidth
+        local y2 = thisY + thisHeight
+
+        vertexCoords[vertexCount+1 ] = x1 -- top left
+        vertexCoords[vertexCount+2 ] = y1
+        vertexCoords[vertexCount+3 ] = x1 -- bottom left
+        vertexCoords[vertexCount+4 ] = y2
+        vertexCoords[vertexCount+5 ] = x2 -- top right
+        vertexCoords[vertexCount+6 ] = y1
+        vertexCoords[vertexCount+7 ] = x1 -- bottom left
+        vertexCoords[vertexCount+8 ] = y2
+        vertexCoords[vertexCount+9 ] = x2 -- top right
+        vertexCoords[vertexCount+10] = y1
+        vertexCoords[vertexCount+11] = x2 -- bottom right
+        vertexCoords[vertexCount+12] = y2
+
+        -- Add to textureCoords
+        local x1 = thisSourceX / texture.width
+        local y1 = thisSourceY / texture.height
+        local x2 = (thisSourceX + thisWidth) / texture.width
+        local y2 = (thisSourceY + thisHeight) / texture.height
+
+        textureCoords[vertexCount+1 ] = x1 -- top left
+        textureCoords[vertexCount+2 ] = y1
+        textureCoords[vertexCount+3 ] = x1 -- bottom left
+        textureCoords[vertexCount+4 ] = y2
+        textureCoords[vertexCount+5 ] = x2 -- top right
+        textureCoords[vertexCount+6 ] = y1
+        textureCoords[vertexCount+7 ] = x1 -- bottom left
+        textureCoords[vertexCount+8 ] = y2
+        textureCoords[vertexCount+9 ] = x2 -- top right
+        textureCoords[vertexCount+10] = y1
+        textureCoords[vertexCount+11] = x2 -- bottom right
+        textureCoords[vertexCount+12] = y2
+
+        vertexCount = vertexCount + 12
+      end
+    end
+  end
+
+  Graphics.glDraw{
+    texture = texture,target = target,
+    priority = priority,sceneCoords = sceneCoords,color = color,
+    vertexCoords = vertexCoords,
+    textureCoords = textureCoords,
+  }
 end
 
 -- =======================================
@@ -137,7 +244,7 @@ local function tick_listbox(ui)
     ui.lButtonState = 0
   end
 
-  if ui.value == ui.min then
+  if ui.value == 1 then
     ui.lButtonState = 3
   end
 
@@ -155,7 +262,7 @@ local function tick_listbox(ui)
     ui.rButtonState = 0
   end
 
-  if ui.value == ui.max then
+  if ui.value == #ui.list then
     ui.rButtonState = 3
   end
 end
@@ -164,9 +271,13 @@ local function draw_listbox(ui)
   textplus.print{text = ui.name, x = ui.x, y = ui.y, font = uiFont, xscale = 2, yscale = 2}
   drawTextureBox(buttonGfx.left, ui.lButtonColl, 0, ui.lButtonState*buttonGfx.left.height/4, buttonGfx.left.width, buttonGfx.left.height/4)
   drawTextureBox(buttonGfx.right, ui.rButtonColl, 0, ui.rButtonState*buttonGfx.right.height/4, buttonGfx.right.width, buttonGfx.right.height/4)
-  drawTextureBox(lineEditGFX, ui.lineEditColl, 0, 0, lineEditGFX.width, lineEditGFX.height)
+  drawSegmentedBox{texture = lineEditGFX, x = ui.lineEditColl.x, y = ui.lineEditColl.y, width = ui.lineEditColl.width, height = ui.lineEditColl.height, priority = 0}
 
-  textplus.print{text = '<color '..string.lower(ui.list[ui.value])..">"..ui.list[ui.value].."</color>", x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
+  if ui.name == "Color: " then
+    textplus.print{text = '<color '..string.lower(ui.list[ui.value])..">"..ui.list[ui.value].."</color>", x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
+  else
+    textplus.print{text = ui.list[ui.value], x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
+  end
 end
 
 

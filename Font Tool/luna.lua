@@ -22,9 +22,10 @@ function wrapInt(current, minVal, maxVal)
 	-- return wrapped
 end
 
+local fontUI = miniui.ListBox{x = 16, y = 390, name = 'Font: ', list = {'a', 'b', 'c'}, lineEditSize = vector(256, 32)}
 local scaleUI = miniui.SpinBox{min = 0, max = 10, int = 0.5, x = 16, y = 180, name = "Scale: ", default = 1} -- Can we get a scaleX and scaleY option? sometimes I use tall text and it would be nice to see what it looks like
 local waveUI = miniui.SpinBox{min = -10, max = 10, int = 0.5, x = 16, y = 250, name = "Wave: ", default = 0}
-local colorUI = miniui.ListBox{x = 16, y = 320, name = 'Color', list = {'White', 'Black', 'Gray', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Rainbow'}}
+local colorUI = miniui.ListBox{x = 16, y = 320, name = 'Color: ', list = {'White', 'Black', 'Gray', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Rainbow'}}
 
 local fontIndex = 1
 local fontList = {}
