@@ -294,7 +294,7 @@ end
 ]]
 lib.SpinBox = function(args)
   args.active = true
-  args.value = args.value or 1
+  args.value = args.default or 1
 
   args.buttonSize = args.buttonSize or vector(32, 32)
   args.lineEditSize = args.lineEditSize or vector(96, 32)
