@@ -2,10 +2,10 @@ local textplus = require("textplus")
 local miniui = require("miniui")
 local cursor = require("cursor")
 
+cursor.create()
 
-
-function wrapInt(current, minVal, maxVal)
-	return ((current - maxVal + minVal) % (minVal - maxVal)) + maxVal
+function wrapInt(x, min, max)
+	return ((x - max + min - 1) % (min - max - 1)) + max
 
 	-- local range = maxVal - minVal + 1
 	-- local wrapped = current
@@ -22,7 +22,7 @@ function wrapInt(current, minVal, maxVal)
 	-- return wrapped
 end
 
-local fontUI = miniui.ListBox{x = 16, y = 20, name = 'Font: ', list = {'a', 'b', 'c'}, lineEditSize = vector(256, 32)}
+local fontUI = miniui.ListBox{x = 16, y = 20, canWrap = true, name = 'Font: ', list = {'a', 'b', 'c'}, lineEditSize = vector(256, 32)}
 --local modeUI = miniui.ListBox{x = 16, y = 120, name = 'Mode: ', list = {'Preview', 'Defaults', 'Character'}, lineEditSize = vector(152, 32)}
 
 
@@ -550,7 +550,7 @@ function onDraw()
 
 
     -- Scrollbar dragging
-    if  cursor.left == KEYS_DOWN  then
+    if  cursor.click  then
         -- Horz drag
         if   cursor.x > display.bounds.left+32
         and  cursor.x < display.bounds.left + displaySize.x - 32
@@ -558,8 +558,7 @@ function onDraw()
         and  cursor.y < display.bounds.bottom
         and  display.scrollMax.x > 0
         then
-            local percent = math.invlerp(display.bounds.left+48,display.bounds.left + displaySize.x-48, cursor.x)
-            display.scrollPos.x = display.scrollMax.x*math.clamp(percent,0,1)
+					  display.horizantalGrab = true
         end
         -- Vert drag
         if   cursor.x > display.bounds.right-32
@@ -568,10 +567,23 @@ function onDraw()
         and  cursor.y < display.bounds.top + displaySize.y - 32
         and  display.scrollMax.y > 0
         then
-            local percent = math.invlerp(display.bounds.top+48,display.bounds.top + displaySize.y-48, cursor.y)
-            display.scrollPos.y = display.scrollMax.y*math.clamp(percent,0,1)
+					display.verticalGrab = true
         end
+		elseif cursor.left == KEYS_RELEASED then
+			display.horizantalGrab = false
+display.verticalGrab = false
     end
+		if display.horizantalGrab then
+			local percent = math.invlerp(display.bounds.left+48,display.bounds.left + displaySize.x-48, cursor.x)
+			display.scrollPos.x = display.scrollMax.x*math.clamp(percent,0,1)
+		end
+
+
+		if display.verticalGrab then
+			local percent = math.invlerp(display.bounds.top+48,display.bounds.top + displaySize.y-48, cursor.y)
+			display.scrollPos.y = display.scrollMax.y*math.clamp(percent,0,1)
+		end
+
 
     -- Display the preview text
     display.buffer:clear(100)

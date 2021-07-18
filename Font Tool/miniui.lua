@@ -23,6 +23,14 @@ local lineEditGFX = Graphics.loadImageResolved("lineEdit.png")
 
 local activeWidgets = {}
 
+local function advance(x, min, max, wrap)
+  if wrap then
+    return ((x - max + min - 1) % (min - max - 1)) + max
+  else
+    return math.clamp(x, min, max)
+  end
+end
+
 local function drawTextureBox(texture, coll, sx, sy, sw, sh)
 
   local width, height = vector(coll.width, 0), vector(0, coll.height)
@@ -149,8 +157,9 @@ end
 -- =======================================
 local function tick_spinbox(ui)
   if Colliders.collide(cursor.screenpos, ui.lButtonColl) then
-    if cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
-      ui.value = math.clamp(ui.value - ui.int, ui.min, ui.max)
+    if (cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0)) and ui.value > ui.min then
+      ui.value = advance(ui.value - ui.int, ui.min, ui.max, ui.canWrap)
+      SFX.play(14)
       if ui.func then ui.func('left') end
     end
     if cursor.left then
@@ -167,8 +176,9 @@ local function tick_spinbox(ui)
   end
 
   if Colliders.collide(cursor.screenpos, ui.rButtonColl) then
-    if cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
-      ui.value = math.clamp(ui.value + ui.int, ui.min, ui.max)
+    if (cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0)) and ui.value < ui.max then
+      ui.value = advance(ui.value + ui.int, ui.min, ui.max, ui.canWrap)
+      SFX.play(14)
       if ui.func then ui.func('right') end
     end
     if cursor.left then
@@ -231,8 +241,9 @@ end
 -- =======================================
 local function tick_listbox(ui)
   if Colliders.collide(cursor.screenpos, ui.lButtonColl) then
-    if cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
-      ui.index = math.clamp(ui.index - 1, 1, #ui.list)
+    if (cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0)) and (ui.index > 1 or ui.canWrap)then
+      ui.index = advance(ui.index - 1, 1, #ui.list, ui.canWrap)
+      SFX.play(14)
       if ui.func then ui.func() end
     end
     if cursor.left then
@@ -244,13 +255,14 @@ local function tick_listbox(ui)
     ui.lButtonState = 0
   end
 
-  if ui.index == 1 then
+  if ui.index == 1 and not ui.canWrap then
     ui.lButtonState = 3
   end
 
   if Colliders.collide(cursor.screenpos, ui.rButtonColl) then
-    if cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
-      ui.index = math.clamp(ui.index + 1, 1, #ui.list)
+    if (cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0)) and (ui.index < #ui.list or ui.canWrap) then
+      ui.index = advance(ui.index + 1, 1, #ui.list, ui.canWrap)
+      SFX.play(14)
       if ui.func then ui.func() end
     end
     if cursor.left then
@@ -262,7 +274,7 @@ local function tick_listbox(ui)
     ui.rButtonState = 0
   end
 
-  if ui.index == #ui.list then
+  if ui.index == #ui.list and not ui.canWrap then
     ui.rButtonState = 3
   end
 
