@@ -232,7 +232,7 @@ end
 local function tick_listbox(ui)
   if Colliders.collide(cursor.screenpos, ui.lButtonColl) then
     if cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
-      ui.value = math.clamp(ui.value - 1, 1, #ui.list)
+      ui.index = math.clamp(ui.index - 1, 1, #ui.list)
       if ui.func then ui.func() end
     end
     if cursor.left then
@@ -244,13 +244,13 @@ local function tick_listbox(ui)
     ui.lButtonState = 0
   end
 
-  if ui.value == 1 then
+  if ui.index == 1 then
     ui.lButtonState = 3
   end
 
   if Colliders.collide(cursor.screenpos, ui.rButtonColl) then
     if cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0) then
-      ui.value = math.clamp(ui.value + 1, 1, #ui.list)
+      ui.index = math.clamp(ui.index + 1, 1, #ui.list)
       if ui.func then ui.func() end
     end
     if cursor.left then
@@ -262,9 +262,12 @@ local function tick_listbox(ui)
     ui.rButtonState = 0
   end
 
-  if ui.value == #ui.list then
+  if ui.index == #ui.list then
     ui.rButtonState = 3
   end
+
+
+  ui.value = ui.list[ui.index]
 end
 
 local function draw_listbox(ui)
@@ -274,9 +277,9 @@ local function draw_listbox(ui)
   drawSegmentedBox{texture = lineEditGFX, x = ui.lineEditColl.x, y = ui.lineEditColl.y, width = ui.lineEditColl.width, height = ui.lineEditColl.height, priority = 0}
 
   if ui.name == "Color: " then
-    textplus.print{text = '<color '..string.lower(ui.list[ui.value])..">"..ui.list[ui.value].."</color>", x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
+    textplus.print{text = '<color '..string.lower(ui.value)..">"..ui.value.."</color>", x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
   else
-    textplus.print{text = ui.list[ui.value], x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
+    textplus.print{text = ui.value, x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
   end
 end
 
@@ -291,7 +294,7 @@ end
 ]]
 lib.SpinBox = function(args)
   args.active = true
-  args.value = args.default
+  args.value = args.value or 1
 
   args.buttonSize = args.buttonSize or vector(32, 32)
   args.lineEditSize = args.lineEditSize or vector(96, 32)
@@ -323,7 +326,9 @@ end
 ]]
 lib.ListBox = function(args)
   args.active = true
-  args.value = 1
+
+  args.index = args.index or 1
+  args.value = args.list[args.index]
 
   args.buttonSize = args.buttonSize or vector(32, 32)
   args.lineEditSize = args.lineEditSize or vector(96, 32)
