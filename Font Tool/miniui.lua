@@ -25,9 +25,9 @@ local activeWidgets = {}
 
 local function advance(x, min, max, wrap)
   if wrap then
-    return ((x - max + min - 1) % (min - max - 1)) + max
+    return tonumber(string.format("%.5f", ((x - max + min - 1) % (min - max - 1)) + max))
   else
-    return math.clamp(x, min, max)
+    return tonumber(string.format("%.5f", math.clamp(x, min, max)))
   end
 end
 
@@ -155,6 +155,14 @@ end
 -- =======================================
 -- ==========      Spin Box     ==========
 -- =======================================
+local function exitlinebox(ui)
+    ui.lineEditState = 0
+    isActiveBuffer = false
+    ui.value = tonumber(ui.lineEditBuffer) or ui.default
+    ui.value = math.clamp(ui.value, ui.min, ui.max)
+    if ui.func then ui.func('line') end
+end
+
 local function tick_spinbox(ui)
   if Colliders.collide(cursor.screenpos, ui.lButtonColl) then
     if (cursor.click or (cursor.left and cursor.leftDragBox.timer >= 20 and cursor.leftDragBox.timer % 10 == 0)) and ui.value > ui.min then
@@ -203,12 +211,11 @@ local function tick_spinbox(ui)
     end
   else
     if cursor.click and ui.lineEditState == 1 then
-      ui.lineEditState = 0
-      isActiveBuffer = false
-      ui.value = tonumber(ui.lineEditBuffer) or ui.default
-      ui.value = math.clamp(ui.value, ui.min, ui.max)
-      if ui.func then ui.func('line') end
+      exitlinebox(ui)
     end
+  end
+  if ui.lineEditState == 1 and Misc.GetKeyState(13) then
+    exitlinebox(ui)
   end
 
   if ui.lineEditState == 1 then
@@ -231,7 +238,11 @@ local function draw_spinbox(ui)
   if ui.lineEditState == 0 then
     textplus.print{text = tostring(ui.value), x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
   else
-    textplus.print{text = ui.lineEditBuffer, x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
+    local s = " "
+    if lunatime.tick() % 40 < 20 then
+      s = "|"
+    end
+    textplus.print{text = ui.lineEditBuffer..s, x = ui.lineEditColl.x + 0.5*ui.lineEditColl.width, y = ui.lineEditColl.y + 0.5*ui.lineEditColl.height, font = uiFont, xscale = 2, yscale = 2, pivot = {0.5, 0.5}}
   end
 end
 
