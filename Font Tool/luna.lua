@@ -23,18 +23,18 @@ function wrapInt(x, min, max)
 end
 
 local fontUI = miniui.ListBox{x = 16, y = 20, canWrap = true, name = 'Font: ', list = {'a', 'b', 'c'}, lineEditSize = vector(256, 32)}
---local modeUI = miniui.ListBox{x = 16, y = 120, name = 'Mode: ', list = {'Preview', 'Defaults', 'Character'}, lineEditSize = vector(152, 32)}
+local modeUI = miniui.ListBox{x = 16, y = 120, name = 'Mode: ', list = {'Preview', 'About'--[['Defaults', 'Character']]}, lineEditSize = vector(152, 32)}
 
 
 -- Global mode
 
 -- Preview mode
-local scaleUI = miniui.SpinBox{min = 0.5, max = 10, int = 0.5, x = 16, y = 316, name = "Scale: ", default = 1, lineEditSize = vector(152, 32)}
-local scaleXUI = miniui.SpinBox{min = 0.5, max = 5, int = 0.5, x = 16, y = 386, name = "Scale X: ", default = 1, lineEditSize = vector(40, 32)}
-local scaleYUI = miniui.SpinBox{min = 0.5, max = 5, int = 0.5, x = 128, y = 386, name = "Scale Y: ", default = 1, lineEditSize = vector(40, 32)}
-local waveUI = miniui.SpinBox{min = -10, max = 10, int = 0.5, x = 16, y = 456, name = "Wave: ", default = 0, lineEditSize = vector(40, 32)}
-local glitchUI = miniui.SpinBox{min = 0, max = 1, int = 0.1, x = 128, y = 456, name = "Glitch: ", default = 0, lineEditSize = vector(40, 32)}
-local colorUI = miniui.ListBox{x = 16, y = 526, name = 'Color: ', list = {'White', 'Black', 'Gray', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Rainbow'}, lineEditSize = vector(152, 32)}
+local scaleUI = miniui.SpinBox{min = 0.5, max = 10, int = 0.5, x = 16, y = 246, name = "Scale: ", default = 2, lineEditSize = vector(152, 32)}
+local scaleXUI = miniui.SpinBox{min = 0.5, max = 5, int = 0.5, x = 16, y = 316, name = "Scale X: ", default = 1, lineEditSize = vector(40, 32)}
+local scaleYUI = miniui.SpinBox{min = 0.5, max = 5, int = 0.5, x = 128, y = 316, name = "Scale Y: ", default = 1, lineEditSize = vector(40, 32)}
+local waveUI = miniui.SpinBox{min = -10, max = 10, int = 0.5, x = 16, y = 386, name = "Wave: ", default = 0, lineEditSize = vector(40, 32)}
+local glitchUI = miniui.SpinBox{min = 0, max = 1, int = 0.1, x = 128, y = 386, name = "Glitch: ", default = 0, lineEditSize = vector(40, 32)}
+local colorUI = miniui.ListBox{x = 16, y = 456, name = 'Color: ', list = {'White', 'Black', 'Gray', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Rainbow'}, lineEditSize = vector(152, 32)}
 
 local fontIndex = 1
 local fontList = {}
@@ -147,6 +147,7 @@ local buttons = {
             local _,fontName = display:getCurrentFont()
             fontMap[fontName] = textplus.loadFont(fontPaths[fontName])
             display.layoutDirty = true
+            SFX.play(14)
         end
     },
     --]]
@@ -158,6 +159,7 @@ local buttons = {
         img = buttonGfx.reset,
         onPress = function(self)
             display:ChangeTestString(defaultTestString)
+            SFX.play(14)
         end
     }
 }
@@ -180,10 +182,17 @@ local labels = {
         text = ""
     },
     --]]
+
+    about = {
+        x=10, y=260,
+        text = "<align center>The Font Tool Level v1.0.0<br>by Rixithechao & SetaYoshi<br><br>Pre-packaged fonts<br>(in this level) made by<br>Rixithechao & KBM-Quine<br>using rips by Jackster,<br>Squishy Rex, and<br>Murphmario<br><br>Other info here idk</align>"
+    },
+
     testString = {
         x = 2,
         y = 4,
         text = "",
+        visible = true,
         target = testStringField.buffer
     }
 }
@@ -283,7 +292,7 @@ function onDraw()
 
     -- Modes
     for  k,v in ipairs{scaleUI, scaleXUI, scaleYUI, waveUI, glitchUI, colorUI}  do
-        v.active = true --modeUI.value == "Preview"
+        v.active = modeUI.value == "Preview"
     end
 
 
@@ -349,23 +358,24 @@ function onDraw()
         basegameFontAdd = "(BASEGAME) "
     end
 
-    --labels.fontname.text = "Font: "..basegameFontAdd..fontName
-    --labels.scale.text = "Scale: "..tostring(display.scale)
+    labels.about.visible = modeUI.value == "About"
     labels.testString.text = display.testStringPlaintext..stringFieldAdd
 
     for  _,k in ipairs(labelList)  do
         local v = labels[k]
 
-        textplus.print {
-            font = uiFont,
-            xscale = 2,
-            yscale = 2,
-            x = v.x,
-            y = v.y,
-            text = v.text,
-            limit = v.limit,
-            target = v.target
-        }
+        if  v.visible  then
+            textplus.print {
+                font = uiFont,
+                xscale = 2,
+                yscale = 2,
+                x = v.x,
+                y = v.y,
+                text = v.text,
+                limit = v.limit,
+                target = v.target
+            }
+        end
     end
 
     -- Text entry field rendering
