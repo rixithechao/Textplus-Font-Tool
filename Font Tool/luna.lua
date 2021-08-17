@@ -2,6 +2,10 @@ local textplus = require("textplus")
 local miniui = require("miniui")
 local cursor = require("cursor")
 
+
+local uiFont = textplus.loadFont("textplus/font/4.ini")
+
+
 cursor.create()
 
 function wrapInt(x, min, max)
@@ -45,14 +49,29 @@ local defaultTestString = [[The quick brown fox<br>jumps over the lazy dog<br>AB
 
 
 
+local display
+
 local testStringField = {
     active = false,
     buffer = CaptureBuffer(2048,32),
     scroll = 0,
-    blinkSpeed = 1.5
+    blinkSpeed = 1.5,
+    layout = nil,
+
+    getMaxScroll = function(self)
+        local stringFieldSize = vector(display.bounds.w-64, 28)
+
+        return math.max(0, self.layout.width - stringFieldSize.x+32)
+    end,
+    scrollToStart = function(self)
+        self.scroll = 0
+    end,
+    scrollToEnd = function(self)
+        self.scroll = self:getMaxScroll()
+    end
 }
 
-local display = {
+display = {
 
     -- Control vars
     index = 1,
@@ -95,7 +114,6 @@ display.bounds.h = display.bounds.bottom-display.bounds.top
 
 
 -- UI
-local uiFont = textplus.loadFont("textplus/font/4.ini")
 local scales = {0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5}
 
 local buttonGfx = {
@@ -280,6 +298,48 @@ function onTick()
 end
 
 
+function onKeyboardPressDirect(keyCode, isARepetitionDueToHolding, char)
+    if  testStringField.active  then
+        local currentStr = display.testString
+ 
+        -- Backspace
+        if keyCode == 8 then
+            local s = currentStr
+            
+            -- Delete line breaks
+            if  s:sub(-4, -1) == "<br>"  then
+                s = s:sub(1, -5)
+            else
+                s = s:sub(1, -2)
+            end
+            currentStr = s
+            testStringField:scrollToEnd()
+
+        -- Enter
+        elseif  keyCode == VK_RETURN  then
+            currentStr = currentStr.."<br>"
+            testStringField:scrollToEnd()
+
+        -- Add anything typed to the end
+        elseif  char ~= nil  and  keyCode ~= VK_LEFT  and  keyCode ~= VK_RIGHT  and  keyCode ~= VK_UP  and  keyCode ~= VK_DOWN  then
+            currentStr = currentStr..char
+            testStringField:scrollToEnd()
+        end
+
+        -- Update the test string
+        display:ChangeTestString(currentStr)
+        fontviewer.text = currentStr
+    end
+end
+
+function onPasteText(pastedText)
+    if  testStringField.active  then
+
+        display:ChangeTestString(display.testString .. pastedText)
+        fontviewer.text = display.testString
+    end
+end
+
 
 function onDraw()
 
@@ -328,6 +388,10 @@ function onDraw()
                 return "<gt>"
             end
         end)
+
+        local parsed = textplus.parse(display.testStringPlaintext, {font=uiFont, xscale=2, yscale=2})
+        testStringField.layout = textplus.layout(parsed)
+
         display.layoutDirty = true
     end
 
@@ -338,16 +402,38 @@ function onDraw()
 
     local stringFieldAdd = ""
 
+    local testStringFieldWasActive = testStringField.active
     if   cursor.left == KEYS_PRESSED  then
         testStringField.active = (cursor.x > stringFieldPos.x
                              and  cursor.x < stringFieldPos.x + stringFieldSize.x
                              and  cursor.y > stringFieldPos.y
                              and  cursor.y < stringFieldPos.y + stringFieldSize.y)
+        
+        if  not testStringFieldWasActive  and  testStringField.active  then
+            testStringField:scrollToEnd()
+        end
     end
 
     if  testStringField.active  then
+
         if  math.ceil(testStringField.blinkSpeed * lunatime.time())%2 == 0  then
             stringFieldAdd = "|"
+        end
+
+        -- Scroll horizontally
+        if  player.rawKeys.left == KEYS_DOWN  then
+            testStringField.scroll = math.max(0, testStringField.scroll - 10)
+        end
+        if  player.rawKeys.right == KEYS_DOWN  then
+            testStringField.scroll = math.min(testStringField:getMaxScroll(), testStringField.scroll + 10)
+        end
+
+        -- Jump to start/end
+        if  player.rawKeys.down == KEYS_DOWN  then
+            testStringField:scrollToEnd()
+        end
+        if  player.rawKeys.up == KEYS_DOWN  then
+            testStringField:scrollToStart()
         end
     end
 
