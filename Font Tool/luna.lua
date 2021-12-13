@@ -246,7 +246,7 @@ local buttons = {
             -- Main group
             iniFile:write("# Sheet Information\n[main]\n"
 
-                .."image='"..fontPath.."'\n"
+                .."image='"..fontPath:sub(1,-4).."png'\n"
                 .."rows="..currentFont.rows.."\n"
                 .."cols="..currentFont.cols.."\n")
 
