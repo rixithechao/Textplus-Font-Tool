@@ -2,6 +2,8 @@ local textplus = require("textplus")
 local miniui = require("miniui")
 local cursor = require("cursor")
 
+local configFileReader = require("configFileReader")
+
 
 local uiFont = textplus.loadFont("textplus/font/4.ini")
 
@@ -26,11 +28,23 @@ function wrapInt(x, min, max)
 	-- return wrapped
 end
 
-local fontUI = miniui.ListBox{x = 16, y = 20, canWrap = true, name = 'Font: ', list = {'a', 'b', 'c'}, lineEditSize = vector(256, 32)}
-local modeUI = miniui.ListBox{x = 16, y = 120, name = 'Mode: ', list = {'Preview', 'About'--[['Defaults', 'Character']]}, lineEditSize = vector(152, 32)}
+local fontUI = miniui.ListBox{x = 16, y = 14, canWrap = true, name = 'Font: ', list = {'a', 'b', 'c'}, lineEditSize = vector(256, 32)}
+local modeUI = miniui.ListBox{x = 16, y = 120, name = 'Mode: ', list = {'Preview', 'Edit', 'About'}, lineEditSize = vector(152, 32)}
+--local displayTypeUI = miniui.ListBox{x = 480, y = 14, name = 'Display: ', list = {'Test String', 'Image'}, lineEditSize = vector(152, 32)}
 
 
--- Global mode
+-- Edit mode
+local colsUI = miniui.SpinBox{min = 1, max = 100, int = 1, x = 16, y = 206, name = "Columns: ", default = 16, lineEditSize = vector(40, 32)}
+local rowsUI = miniui.SpinBox{min = 1, max = 100, int = 1, x = 128, y = 206, name = "Rows: ", default = 8, lineEditSize = vector(40, 32)}
+local ascentUI = miniui.SpinBox{min = 0, max = 1000, int = 1, x = 16, y = 266, name = "Ascent: ", default = 0, lineEditSize = vector(40, 32)}
+local descentUI = miniui.SpinBox{min = 0, max = 1000, int = 1, x = 128, y = 266, name = "Descent: ", default = 0, lineEditSize = vector(40, 32)}
+local spacingUI = miniui.SpinBox{min = 0, max = 1000, int = 1, x = 64, y = 326, name = "Spacing: ", default = 0, lineEditSize = vector(40, 32)}
+
+local characterUI = miniui.ListBox{x = 16, y = 406, name = 'Character: ', list = {"A", "B"}, lineEditSize = vector(152, 32)}
+local widthUI = miniui.SpinBox{min = 0, max = 1000, int = 1, x = 16, y = 466, name = "Width: ", default = 1, lineEditSize = vector(40, 32)}
+local heightUI = miniui.SpinBox{min = 1, max = 1000, int = 1, x = 128, y = 466, name = "Height: ", default = 1, lineEditSize = vector(40, 32)}
+local baselineUI = miniui.SpinBox{min = 1, max = 1000, int = 1, x = 64, y = 526, name = "Baseline: ", default = 1, lineEditSize = vector(40, 32)}
+
 
 -- Preview mode
 local scaleUI = miniui.SpinBox{min = 0.5, max = 10, int = 0.5, x = 16, y = 246, name = "Scale: ", default = 2, lineEditSize = vector(152, 32)}
@@ -44,8 +58,11 @@ local fontIndex = 1
 local fontList = {}
 local fontMap = {}
 local fontPaths = {}
+local fontInis = {}
 local localCount = 1
 local defaultTestString = [[The quick brown fox<br>jumps over the lazy dog<br>ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz<br>1234567890.,!?:;'"&%()[]{}<br>*+=-_]]
+
+
 
 
 
@@ -53,6 +70,7 @@ local display
 
 local testStringField = {
     active = false,
+    --visible = true,
     buffer = CaptureBuffer(2048,32),
     scroll = 0,
     blinkSpeed = 1.5,
@@ -103,6 +121,45 @@ display = {
         return currentFont, fontName
     end,
 
+    OnChangeFont = function(self, newFont)
+        self.font = newFont
+        colsUI.value = newFont.cols
+        rowsUI.value = newFont.rows
+        ascentUI.value = newFont.ascent
+        descentUI.value = newFont.descent
+
+        local newGlyphNameList = {}
+        for  k,v in ipairs(newFont.simplecodes)  do
+            newGlyphNameList[k] = string.char(v)
+        end
+        characterUI.index = 1
+        characterUI.list = newGlyphNameList
+        self:OnChangeGlyph(1)
+
+        --[[
+        local debugStr = ""
+        for  k,v in pairs(self.font)  do
+            if  type(v) == "table"  then
+                Misc.dialog(k,v)
+            end
+            debugStr = debugStr..tostring(k)..": "..tostring(v).."\n"
+        end
+        Misc.dialog(debugStr)
+        --]]
+    end,
+
+    OnChangeGlyph = function(self, newGlyphIndex)
+        self.glyphCode = self.font.codes[newGlyphIndex]
+        self.glyphChar = string.char(self.glyphCode)
+        self.glyph = self.font.glyphs[self.glyphCode]
+
+        baselineUI.value = self.glyph.baseline
+        widthUI.value = self.glyph.width
+        heightUI.value = self.glyph.height
+
+        --Misc.dialog(display.glyphCode, display.glyphChar, "", display.glyph, "", display.glyph.x1 .. ", " .. display.glyph.x2, display.glyph.y1 .. ", " .. display.glyph.y2, "", display.glyph.x1c .. ", " .. display.glyph.x2c, display.glyph.y1c .. ", " .. display.glyph.y2c, "")
+    end,
+
     ChangeTestString = function(self, newText)
         self.testString = newText
         self.testStringDirty = true
@@ -121,7 +178,8 @@ local buttonGfx = {
     right = Graphics.loadImageResolved("button_right.png"),
     up = Graphics.loadImageResolved("button_up.png"),
     down = Graphics.loadImageResolved("button_down.png"),
-    reset = Graphics.loadImageResolved("button_reset.png")
+    reset = Graphics.loadImageResolved("button_reset.png"),
+    save = Graphics.loadImageResolved("button_save.png")
 }
 local buttons = {
 
@@ -170,6 +228,96 @@ local buttons = {
     },
     --]]
 
+    outputFont = {
+        x=fontUI.x + fontUI.lineEditSize.x + 128, y = fontUI.y + 40,
+        img = buttonGfx.save,
+        onPress = function(self)
+            
+            local currentFont,fontName = display:getCurrentFont()
+            local fontPath = fontPaths[fontName]
+
+            ---[[
+            -- Import font ini
+            local iniDat = fontInis[fontName]
+
+            local fullPath = Misc.levelPath():gsub([[[\/]+]], [[/]]) .. "output/" .. fontName .. ".ini"
+            local iniFile = io.open (fullPath, "w")
+
+            -- Main group
+            iniFile:write("# Sheet Information\n[main]\n"
+
+                .."image='"..fontPath.."'\n"
+                .."rows="..currentFont.rows.."\n"
+                .."cols="..currentFont.cols.."\n")
+
+            for  _,v in ipairs{"ascent", "descent", "spacing"}  do
+                if  currentFont[v] ~= nil  then
+                    iniFile:write(v.."="..currentFont[v].."\n")
+                end
+            end
+
+            -- Glyph defaults group
+            if  iniDat.glyphdefaults ~= nil  then
+                local defs = iniDat.glyphdefaults
+
+                iniFile:write("\n# Default Glyph Properties\n[glyphdefaults]\n")
+
+                for  _,v in ipairs{"width", "height", "baseline"}  do
+                    if  defs[v] ~= nil  then
+                        iniFile:write(v.."="..defs[v].."\n")
+                    end
+                end
+            end
+            iniDat.glyphdefaults = iniDat.glyphdefaults  or  {}
+            iniDat.glyphdefaults.width = iniDat.glyphdefaults.width  or  currentFont.cellWidth
+            iniDat.glyphdefaults.height = iniDat.glyphdefaults.height  or  currentFont.cellHeight
+
+
+            -- Glyphmap group
+            if  iniDat.glyphmap ~= nil  then
+                local gmap = iniDat.glyphmap
+
+                iniFile:write("\n# Glyph Map (optional concise way to indicate the row/column of characters for simple cases)\n[glyphmap]\n")
+
+                local orderedRows = {}
+                for k2,lin in pairs(gmap)  do
+                    local rowNum = tonumber(string.sub(k2, 4, -1))
+                    orderedRows[rowNum] = lin
+                end
+                for  k2,lin in ipairs(orderedRows)  do
+                    iniFile:write("row"..tostring(k2).."='"..tostring(lin).."'\n")
+                end
+
+            end
+
+            -- Character entries
+            iniFile:write("\n")
+
+            for  _,v in ipairs(currentFont.codes)  do
+                local glyph = currentFont.glyphs[v]
+                local defs = iniDat.glyphdefaults
+
+                local uniqueProps = {}
+                for  _,v2 in ipairs{"width", "height", "baseline"}  do
+                    if  glyph[v2] ~= defs[v2]  then
+                        uniqueProps[#uniqueProps+1] = v2
+                    end
+                end
+
+                if  #uniqueProps > 0  then
+                    iniFile:write("["..string.char(v).."]\n")
+                    for  _,v2 in ipairs(uniqueProps)  do
+                        iniFile:write(v2.."="..glyph[v2].."\n")
+                    end
+                end
+            end
+
+            iniFile:close()
+            Misc.dialog(fontName.." saved to output folder!")
+            --]]
+        end
+    },
+
 
     -- Reset test string
     resetTestString = {
@@ -203,7 +351,7 @@ local labels = {
 
     about = {
         x=10, y=260,
-        text = "<align center>The Font Tool Level v1.0.0<br>by Rixithechao & SetaYoshi<br><br>Pre-packaged fonts<br>(in this level) made by<br>Rixithechao & KBM-Quine<br>using rips by Jackster,<br>Squishy Rex, and<br>Murphmario<br><br>Other info here idk</align>"
+        text = "<align center>The Font Tool Level v1.1.0<br>by Rixithechao & SetaYoshi<br><br>Pre-packaged fonts<br>(in this level) made by<br>Rixithechao & KBM-Quine<br>using rips by Jackster,<br>Squishy Rex, and<br>Murphmario<br><br>Other info here idk</align>"
     },
 
     testString = {
@@ -263,6 +411,7 @@ function onStart()
     local fontMaps = {}
     local fontLists = {}
     local fontPathMaps = {}
+    local fontIniMaps = {}
 
     for  k,v in ipairs{
         {files = Misc.listLocalFiles("fonts"),                 root="fonts/"},
@@ -271,12 +420,35 @@ function onStart()
 
         fontMaps[k] = {}
         fontPathMaps[k] = {}
+        fontIniMaps[k] = {}
+
         for  _,v2 in ipairs(v.files)  do
             local str = string.gsub(v2, "([^%.]+)(%.)(%w+)", function(name,dot,extension)
                 if  extension == "ini"  then
                     --Misc.dialog(name, dot, extension)
                     fontPathMaps[k][name] = v.root..v2
                     fontMaps[k][name] = textplus.loadFont(v.root..v2)
+
+                    local iniDat = {}
+                    local charEntries = {}
+                    local charList = {}
+
+                    local layers = configFileReader.parseWithHeaders(Misc.resolveFile(v.root..v2), {})
+                    for  k3,v3 in ipairs(layers)  do
+                        --Misc.dialog(v3)
+
+                        local header = v3.name
+                        v3.name = nil
+                        v3._header = nil
+
+                        if  header == "main"  or  header == "glyphmap"  or  header == "glyphdefaults"  then
+                            iniDat[header] = v3
+                        else
+                            charEntries[string.byte(header)] = v3
+                        end
+                    end
+                    iniDat.charEntries = charEntries
+                    fontIniMaps[k][name] = iniDat
                 end
             end)
         end
@@ -285,6 +457,7 @@ function onStart()
     end
     fontMap = table.join(fontMaps[1], fontMaps[2])
     fontPaths = table.join(fontPathMaps[1], fontPathMaps[2])
+    fontInis = table.join(fontIniMaps[1], fontIniMaps[2])
     fontList = table.append(fontLists[1], fontLists[2])
     localCount = #fontLists[1]
 
@@ -354,29 +527,118 @@ function onDraw()
     for  k,v in ipairs{scaleUI, scaleXUI, scaleYUI, waveUI, glitchUI, colorUI}  do
         v.active = modeUI.value == "Preview"
     end
-
-
-    -- New widget integration
-    if  display.index ~= fontUI.value
-    or  display.scale ~= scaleUI.value
-    or  display.xscale ~= scaleXUI.value
-    or  display.yscale ~= scaleYUI.value
-    or  display.glitch ~= glitchUI.value
-    or  display.color ~= colorUI.value
-    then
-        display.layoutDirty = true
+    for  k,v in ipairs{rowsUI, colsUI, ascentUI, descentUI, spacingUI, characterUI, widthUI, heightUI, baselineUI}  do
+        v.active = modeUI.value == "Edit"
     end
+
+
+    -- Display layout dirty check
+    for  k,v in ipairs{
+        {"index", fontUI},
+        {"scale", scaleUI},
+        {"xscale", scaleXUI},
+        {"yscale", scaleYUI},
+        {"glitch", glitchUI},
+        {"color", colorUI},
+    }  do
+        if  display[v[1]] ~= v[2][v[3] or "value"]  then
+            display.layoutDirty = true
+            break;
+        end
+    end
+
+
+    -- Display write
     fontUI.list = fontList
-    display.index = fontUI.index
-    display.scale = scaleUI.value
-    display.xscale = scaleXUI.value
-    display.yscale = scaleYUI.value
-    display.glitch = glitchUI.value
-    display.color = colorUI.value
+
+    for k,v in ipairs{
+        {"index", fontUI, "index"},
+        {"scale", scaleUI},
+        {"xscale", scaleXUI},
+        {"yscale", scaleYUI},
+        {"glitch", glitchUI},
+        {"color", colorUI}
+    }  do
+        if  v[4] ~= true  then
+            display[v[1]] = v[2][v[3] or "value"]
+        end
+    end
+
 
 
     -- Get the current font
     local currentFont, fontName = display:getCurrentFont()
+    if  currentFont ~= display.font  then
+        display:OnChangeFont(currentFont)
+    end
+
+
+    -- Font write and layout dirty check
+    for  k2,v2 in ipairs{
+        {"rows", rowsUI},
+        {"cols", colsUI},
+        {"ascent", ascentUI},
+        {"descent", descentUI},
+        {"spacing", spacingUI},
+    }  do
+        if  display.font[v2[1]] ~= v2[2][v2[3] or "value"]  then
+            display.layoutDirty = true
+            display.fontDirty = true
+        end
+        if  v2[4] ~= true  then
+            display.font[v2[1]] = v2[2][v2[3] or "value"]
+        end
+    end
+
+
+    -- Update glyph, or write and layout dirty check
+    if  display.glyphChar == nil  or  display.glyphChar ~= characterUI.value  then
+        display:OnChangeGlyph(characterUI.index)
+    end
+    local glyph = display.glyph
+
+    if  glyph.spacing ~= spacingUI.value  then
+        glyph.spacing = spacingUI.value
+        display.glyphDirty = true
+        display.fontDirty = true
+        display.layoutDirty = true
+    end
+    if  glyph.baseline ~= baselineUI.value  then
+        glyph.baseline = baselineUI.value
+        display.glyphDirty = true
+        display.fontDirty = true
+        display.layoutDirty = true
+    end
+    if  glyph.width ~= widthUI.value  then
+        glyph.width = widthUI.value
+
+        local f = display.font
+        local iW = f.imageWidth
+
+        glyph.x2 = glyph.x1 + (glyph.width/iW)
+        glyph.x1c = glyph.x1*iW + 0.5
+        glyph.x2c = glyph.x2*iW - 0.5
+
+        display.glyphDirty = true
+        display.fontDirty = true
+        display.layoutDirty = true
+    end
+    if  glyph.height ~= heightUI.value  then
+        glyph.height = heightUI.value
+
+        local f = display.font
+        local iH = f.imageHeight
+
+        glyph.y2 = glyph.y1 + (glyph.height/iH)
+        glyph.y1c = glyph.y1*iH + 0.5
+        glyph.y2c = glyph.y2*iH - 0.5
+
+        display.glyphDirty = true
+        display.fontDirty = true
+        display.layoutDirty = true
+    end
+
+
 
     -- Update the test string plaintext
     if  display.testStringDirty  then
