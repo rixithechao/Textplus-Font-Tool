@@ -351,7 +351,7 @@ local labels = {
 
     about = {
         x=10, y=260,
-        text = "<align center>The Font Tool Level v1.1.0<br>by Rixithechao & SetaYoshi<br><br>Pre-packaged fonts<br>(in this level) made by<br>Rixithechao & KBM-Quine<br>using rips by Jackster,<br>Squishy Rex, and<br>Murphmario<br><br>Other info here idk</align>"
+        text = "<align center>The Font Tool Level v1.1.1<br>by Rixithechao & SetaYoshi<br><br>Pre-packaged fonts<br>(in this level) made by<br>Rixithechao & KBM-Quine<br>using rips by Jackster,<br>Squishy Rex, and<br>Murphmario<br><br>Other info here idk</align>"
     },
 
     testString = {
